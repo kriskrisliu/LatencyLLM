@@ -1,0 +1,10 @@
+{
+    "model_id": "/data/ubuntu/kris/checkpoints/Qwen__Qwen2.5-72B-Instruct-AWQ",
+    "number_gpus": 4,
+    "num_pass": 10,
+    "total_latency": 39.14664554595947,
+    "total_tokens": 2847,
+    "total_input_tokens": 378,
+    "total_output_tokens": 2469,
+    "tokens_per_second": 72.72653787557677
+}
