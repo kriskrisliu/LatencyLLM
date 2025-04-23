@@ -4,17 +4,20 @@ import argparse
 import time
 import json
 from datetime import datetime
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--model_id", type=str, default="/data/ubuntu/kris/checkpoints/Qwen__Qwen2.5-32B-Instruct-AWQ")
 parser.add_argument("-n", "--number_gpus", type=int, default=1)
-parser.add_argument("--num_prompts", type=int, default=10, help="Number of prompts to test")
+parser.add_argument("-p", "--num_pass", type=int, default=10, help="Number of prompts to test")
 args = parser.parse_args()
 
 model_id = args.model_id
+model_base_name = os.path.basename(model_id)
 # model_id = "/data/ubuntu/kris/checkpoints/Qwen__Qwen2.5-32B-Instruct"
 number_gpus = args.number_gpus
-num_prompts = args.num_prompts
+num_pass = args.num_pass
+batch_size = 1
 
 # args for model_id and number_gpus
 
@@ -112,7 +115,7 @@ print("Initializing model...")
 llm = LLM(model=model_id, tensor_parallel_size=number_gpus, max_model_len=max_model_len)
 
 # warm up
-messages = [{"role": "user", "content": "Hello, how are you?"}]
+messages = [{"role": "user", "content": "Hello, how are you?"}]*batch_size
 prompts = tokenizer.apply_chat_template(messages, tokenize=False)
 outputs = llm.generate(prompts, sampling_params)
 
@@ -122,9 +125,11 @@ total_tokens = []
 total_input_tokens = []
 total_output_tokens = []
 
-print(f"\nTesting latency with {num_prompts} prompts...")
-for i, prompt in enumerate(test_prompts[:num_prompts]):
-    messages = [{"role": "user", "content": prompt}]
+print(f"\nTesting latency with {num_pass} passes...")
+# for i, prompt in enumerate(test_prompts[:num_pass*batch_size]):
+for i in range(num_pass):
+    ps = test_prompts[i*batch_size:(i+1)*batch_size]
+    messages = [{"role": "user", "content": p} for p in ps]
     prompts = tokenizer.apply_chat_template(messages, tokenize=False)
     
     # Measure generation time
@@ -154,11 +159,11 @@ print(f"Total output tokens: {sum(total_output_tokens)}")
 print(f"Tokens per second: {tokens_per_second:.2f} tokens/s")
 
 # write to json file
-with open(f"latency_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "w") as f:
+with open(f"latency_stats_{model_base_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json", "w") as f:
     json.dump({
         "model_id": model_id,
         "number_gpus": number_gpus,
-        "num_prompts": num_prompts,
+        "num_pass": num_pass,
         "total_latency": sum_latency,
         "total_tokens": sum_tokens,
         "total_input_tokens": sum(total_input_tokens),
